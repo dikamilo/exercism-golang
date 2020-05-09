@@ -1,9 +1,5 @@
 package letter
 
-import (
-	"sync"
-)
-
 type FreqMap map[rune]int
 
 func Frequency(input string) FreqMap {
@@ -16,25 +12,23 @@ func Frequency(input string) FreqMap {
 	return frequency
 }
 
-func ConcurrentFrequency(inputs []string) FreqMap {
-	frequency := FreqMap{}
-	wg := sync.WaitGroup{}
-	mutex := sync.RWMutex{}
+func ConcurrentFrequency(inputs []string) (frequency FreqMap) {
+	channel := make(chan FreqMap)
+	defer close(channel)
 
 	for _, input := range inputs {
-		wg.Add(1)
-
 		go func(input string) {
-			defer wg.Done()
-
-			for character, count := range Frequency(input) {
-				mutex.Lock()
-				frequency[character] += count
-				mutex.Unlock()
-			}
+			channel <- Frequency(input)
 		}(input)
 	}
 
-	wg.Wait()
-	return frequency
+	frequency = <-channel
+
+	for i := 0; i < len(inputs)-1; i++ {
+		for character, count := range <-channel {
+			frequency[character] += count
+		}
+	}
+
+	return
 }
